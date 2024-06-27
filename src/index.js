@@ -6,7 +6,8 @@ function polyfill({
   rum = true,
   agent,
   agentFallback,
-  afterFill
+  onSuccess,
+  onError,
 }) {
   if (!fills) {
     throw new Error('No fills specified.');
@@ -18,11 +19,11 @@ function polyfill({
 
   if (neededPolyfills.length > 0) {
     return loadScript({
-      neededPolyfills, minify, fills, options, rum, agent, agentFallback, afterFill, url
+      neededPolyfills, minify, fills, options, rum, agent, agentFallback, onSuccess, onError, url
     });
   }
 
-  return afterFill();
+  return onSuccess();
 }
 
 
@@ -80,8 +81,14 @@ function loadScript(args) {
 
   document.body.appendChild(js);
 
-  js.onload = () => args.afterFill();
-  js.onerror = () => { throw new Error('Error loading polyfills. Open a ticket: https://github.com/PascalAOMS/dynamic-polyfill/issues') };
+  js.onload = () => args.onSuccess();
+  js.onerror = () => {
+      const error = 'Error loading polyfills. Open a ticket: https://github.com/PascalAOMS/dynamic-polyfill/issues';
+      if (args.onError) {
+        args.onError(error);
+      }
+      throw new Error(error);
+  };
 }
 
 
