@@ -1,5 +1,6 @@
 function polyfill({
   fills,
+  url,
   options = '',
   minify = true,
   rum = true,
@@ -17,7 +18,7 @@ function polyfill({
 
   if (neededPolyfills.length > 0) {
     return loadScript({
-      neededPolyfills, minify, fills, options, rum, agent, agentFallback, afterFill
+      neededPolyfills, minify, fills, options, rum, agent, agentFallback, afterFill, url
     });
   }
 
@@ -70,10 +71,11 @@ function loadScript(args) {
   const monitor  = args.rum     ? '\&rum=1' : ''; // not set to rum=0 since it loads RUM scripts anyway
   const agent    = args.agent   ? `\&ua=${args.agent}` : '';
   const fallback = args.agentFallback ? `\&unknown=${args.agentFallback}` : '';
+  const url = args.url ? args.url : 'https://cdnjs.cloudflare.com/polyfill/v3';
 
   const js = document.createElement('script');
 
-  js.src = `https://cdn.polyfill.io/v2/polyfill${min}.js?${features + flags + monitor + agent + fallback}`;
+  js.src = `${url}/polyfill${min}.js?${features + flags + monitor + agent + fallback}`;
   js.async = true;
 
   document.body.appendChild(js);
