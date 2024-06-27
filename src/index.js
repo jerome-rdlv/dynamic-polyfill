@@ -84,9 +84,6 @@ function loadScript(args) {
   js.onload = () => args.onSuccess();
   js.onerror = () => {
       const error = 'Error loading polyfills. Open a ticket: https://github.com/PascalAOMS/dynamic-polyfill/issues';
-      if (args.onError) {
-        args.onError(error);
-      }
       args.onError ? args.onError(error) : throw new Error(error);
   };
 }
