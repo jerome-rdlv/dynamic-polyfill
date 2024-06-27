@@ -87,7 +87,7 @@ function loadScript(args) {
       if (args.onError) {
         args.onError(error);
       }
-      throw new Error(error);
+      args.onError ? args.onError(error) : throw new Error(error);
   };
 }
 
