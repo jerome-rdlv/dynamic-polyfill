@@ -1,31 +1,88 @@
-function polyfill({
-                      fills,
-                      url,
-                      options = '',
-                      minify = true,
-                      rum = true,
-                      agent,
-                      agentFallback,
-                      onSuccess,
-                      onError,
-                  }) {
-    if (!fills) {
-        throw new Error('No fills specified.');
+function polyfill(
+    {
+        fills,
+        url,
+        options = '',
+        minify = true,
+        rum = true,
+        agent,
+        agentFallback,
+        resolve,
     }
+) {
+    return new Promise(function (resolve, reject) {
+        localPolyfills(fills);
 
-    const fillAnyway = options.indexOf('always') >= 0 || agent; // check if 'always' flag or agent is set
-    const neededPolyfills = fillAnyway ? fills : checkSupport(fills);
+        const fillAnyway = options.indexOf('always') >= 0 || agent; // check if 'always' flag or agent is set
+        const neededPolyfills = fillAnyway ? fills : checkSupport(fills);
 
+        if (neededPolyfills.length === 0) {
+            resolve();
+        }
 
-    if (neededPolyfills.length > 0) {
-        return loadScript({
-            neededPolyfills, minify, fills, options, rum, agent, agentFallback, onSuccess, onError, url
-        });
-    }
+        // load script
+        agent = agent ? `\&ua=${agent}` : '';
+        url = url ? url : 'https://cdnjs.cloudflare.com/polyfill/v3';
 
-    return onSuccess();
+        const min = minify ? '.min' : '';
+        const features = fills ? `features=${neededPolyfills.join(',')}` : '';
+        const flags = options ? `\&flags=${options.join(',')}` : '';
+        const monitor = rum ? '\&rum=1' : ''; // not set to rum=0 since it loads RUM scripts anyway
+        const fallback = agentFallback ? `\&unknown=${agentFallback}` : '';
+
+        const js = document.createElement('script');
+
+        js.src = `${url}/polyfill${min}.js?${features + flags + monitor + agent + fallback}`;
+        js.async = true;
+
+        js.onload = resolve;
+        js.onerror = () => {
+            reject('Error loading polyfills. Open a ticket: https://github.com/PascalAOMS/dynamic-polyfill/issues');
+        };
+
+        document.body.appendChild(js);
+    });
+
 }
 
+function localPolyfills(fills) {
+
+    // local fixes
+    if (!fills || fills.indexOf('requestIdleCallback') === -1) {
+        // Local polyfill to prevent polyfill request for Safari, for which no version has support
+        if (window.requestIdleCallback === undefined) {
+            // noinspection JSValidateTypes
+            window.requestIdleCallback = window.requestAnimationFrame;
+        }
+    }
+
+    // :scope polyfill
+    (function (doc, proto) {
+        try { // check if browser supports :scope natively
+            doc.querySelector(':scope body');
+        } catch (err) { // polyfill native methods if it doesn't
+            ['querySelector', 'querySelectorAll'].forEach(function (method) {
+                var nativ = proto[method];
+                proto[method] = function (selectors) {
+                    if (/(^|,)\s*:scope/.test(selectors)) { // only if selectors contains :scope
+                        var hasId = !!this.id;
+                        if (!hasId) {
+                            this.id = 'ID_' + Date.now(); // assign new unique id
+                        }
+                        selectors = selectors.replace(/((^|,)\s*):scope/g, '$1#' + this.id); // replace :scope with #ID
+                        var result = doc[method](selectors);
+                        if (!hasId) {
+                            this.removeAttribute('id');
+                        }
+                        return result;
+                    } else {
+                        return nativ.call(this, selectors); // use native code for other selectors
+                    }
+                };
+            });
+        }
+    })(window.document, Element.prototype);
+}
 
 function checkSupport(fills) {
     return fills.filter(fill => {
@@ -42,35 +99,6 @@ function checkSupport(fills) {
         return false;
     });
 }
-
-
-function loadScript(args) {
-    const min = args.minify ? '.min' : '';
-    const features = args.fills ? `features=${args.neededPolyfills.join(',')}` : '';
-    const flags = args.options ? `\&flags=${args.options.join(',')}` : '';
-    const monitor = args.rum ? '\&rum=1' : ''; // not set to rum=0 since it loads RUM scripts anyway
-    const agent = args.agent ? `\&ua=${args.agent}` : '';
-    const fallback = args.agentFallback ? `\&unknown=${args.agentFallback}` : '';
-    const url = args.url ? args.url : 'https://cdnjs.cloudflare.com/polyfill/v3';
-
-    const js = document.createElement('script');
-
-    js.src = `${url}/polyfill${min}.js?${features + flags + monitor + agent + fallback}`;
-    js.async = true;
-
-    document.body.appendChild(js);
-
-    js.onload = () => args.onSuccess();
-    js.onerror = () => {
-        const error = 'Error loading polyfills. Open a ticket: https://github.com/PascalAOMS/dynamic-polyfill/issues';
-        if (args.onError) {
-            args.onError(error);
-        } else {
-            throw new Error(error);
-        }
-    };
-}
-
 
 module.exports = polyfill;
 
