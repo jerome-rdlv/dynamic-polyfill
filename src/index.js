@@ -18,6 +18,7 @@ function polyfill(
 
         if (neededPolyfills.length === 0) {
             resolve();
+            exit;
         }
 
         // load script
