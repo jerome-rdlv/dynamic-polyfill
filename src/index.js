@@ -1,6 +1,6 @@
 function polyfill(
     {
-        fills,
+        polyfills,
         url,
         options = '',
         minify = true,
@@ -11,14 +11,14 @@ function polyfill(
     }
 ) {
     return new Promise(function (resolve, reject) {
-        localPolyfills(fills);
+        polyfills = localPolyfills(polyfills);
 
         const fillAnyway = options.indexOf('always') >= 0 || agent; // check if 'always' flag or agent is set
-        const neededPolyfills = fillAnyway ? fills : checkSupport(fills);
+        const neededPolyfills = fillAnyway ? polyfills : checkSupport(polyfills);
 
         if (neededPolyfills.length === 0) {
             resolve();
-            exit;
+            return;
         }
 
         // load script
@@ -26,7 +26,7 @@ function polyfill(
         url = url ? url : 'https://cdnjs.cloudflare.com/polyfill/v3';
 
         const min = minify ? '.min' : '';
-        const features = fills ? `features=${neededPolyfills.join(',')}` : '';
+        const features = polyfills ? `features=${neededPolyfills.join(',')}` : '';
         const flags = options ? `\&flags=${options.join(',')}` : '';
         const monitor = rum ? '\&rum=1' : ''; // not set to rum=0 since it loads RUM scripts anyway
         const fallback = agentFallback ? `\&unknown=${agentFallback}` : '';
@@ -46,14 +46,19 @@ function polyfill(
 
 }
 
-function localPolyfills(fills) {
+function localPolyfills(polyfills) {
 
     // local fixes
-    if (!fills || fills.indexOf('requestIdleCallback') === -1) {
-        // Local polyfill to prevent polyfill request for Safari, for which no version has support
-        if (window.requestIdleCallback === undefined) {
-            // noinspection JSValidateTypes
-            window.requestIdleCallback = window.requestAnimationFrame;
+    if (polyfills) {
+        let index = polyfills.indexOf('requestIdleCallback');
+        if (index !== -1) {
+            // Local polyfill to prevent polyfill request for Safari, for which no version has support
+            if (window.requestIdleCallback === undefined) {
+                // noinspection JSValidateTypes
+                window.requestIdleCallback = window.requestAnimationFrame;
+            }
+            // drop requestIdleCallback from needed fills
+            polyfills.splice(index, 1);
         }
     }
 
@@ -83,11 +88,13 @@ function localPolyfills(fills) {
             });
         }
     })(window.document, Element.prototype);
+
+    return polyfills;
 }
 
-function checkSupport(fills) {
-    return fills.filter(fill => {
-        const parts = fill.split('.'); // i.e. ['Array', 'prototype', 'includes']
+function checkSupport(polyfills) {
+    return polyfills.filter(polyfill => {
+        const parts = polyfill.split('.'); // i.e. ['Array', 'prototype', 'includes']
         let obj = window;
         for (const index in parts) {
             if (!(parts[index] in obj)) {
