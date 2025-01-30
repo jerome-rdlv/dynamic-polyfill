@@ -11,6 +11,12 @@ function polyfill(
     }
 ) {
     return new Promise(function (resolve, reject) {
+        polyfills = polyfills || [];
+
+        if (polyfills.length === 0) {
+            console.warn('Polyfills list is empty; forgot polyfills configuration file?');
+        }
+
         polyfills = localPolyfills(polyfills);
 
         const fillAnyway = options.indexOf('always') >= 0 || agent; // check if 'always' flag or agent is set
